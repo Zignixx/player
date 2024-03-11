@@ -22,19 +22,6 @@ import { sliderValueFormatContext } from '../slider/format';
 import { sliderContext } from '../slider/slider-context';
 import { SliderController, type SliderControllerProps } from '../slider/slider-controller';
 
-export interface TimeSliderState extends SliderState {}
-
-export interface TimeSliderEvents
-  extends SliderEvents,
-    Pick<
-      MediaRequestEvents,
-      | 'media-play-request'
-      | 'media-pause-request'
-      | 'media-seeking-request'
-      | 'media-seek-request'
-      | 'media-live-edge-request'
-    > {}
-
 /**
  * Versatile and user-friendly input time control designed for seamless cross-browser and provider
  * compatibility and accessibility with ARIA support. It offers a smooth user experience for both
@@ -78,8 +65,8 @@ export class TimeSlider extends Component<
       _swipeGesture: () => !noSwipeGesture(),
       _getStep: this._getStep.bind(this),
       _getKeyStep: this._getKeyStep.bind(this),
-      _isDisabled: this._isDisabled.bind(this),
       _roundValue: this._roundValue,
+      _isDisabled: this._isDisabled.bind(this),
       _getARIAValueNow: this._getARIAValueNow.bind(this),
       _getARIAValueText: this._getARIAValueText.bind(this),
       _onDragStart: this._onDragStart.bind(this),
@@ -138,9 +125,12 @@ export class TimeSlider extends Component<
   }
 
   private _watchCurrentTime() {
+    if (this.$state.hidden()) return;
+
     const { currentTime } = this._media.$state,
       { value, dragging } = this.$state,
       newValue = this._timeToPercent(currentTime());
+
     if (!peek(dragging)) {
       value.set(newValue);
       this.dispatch('value-change', { detail: newValue });
@@ -184,6 +174,10 @@ export class TimeSlider extends Component<
   }
 
   private _onDragEnd(event: SliderValueChangeEvent | SliderDragEndEvent) {
+    // Ensure a seeking event is always fired before a seeked event for consistency.
+    const { seeking } = this._media.$state;
+    if (!peek(seeking)) this._seeking(this._percentToTime(event.detail), event);
+
     const percent = event.detail;
     this._seek(this._percentToTime(percent), percent, event);
 
@@ -219,8 +213,9 @@ export class TimeSlider extends Component<
   }
 
   private _isDisabled() {
-    const { canSeek } = this._media.$state;
-    return this.$props.disabled() || !canSeek();
+    const { disabled } = this.$props,
+      { canSeek } = this._media.$state;
+    return disabled() || !canSeek();
   }
 
   // -------------------------------------------------------------------------------------------
@@ -302,3 +297,16 @@ interface ThrottledSeeking {
   (time: number, event: Event): void;
   cancel(): void;
 }
+
+export interface TimeSliderState extends SliderState {}
+
+export interface TimeSliderEvents
+  extends SliderEvents,
+    Pick<
+      MediaRequestEvents,
+      | 'media-play-request'
+      | 'media-pause-request'
+      | 'media-seeking-request'
+      | 'media-seek-request'
+      | 'media-live-edge-request'
+    > {}

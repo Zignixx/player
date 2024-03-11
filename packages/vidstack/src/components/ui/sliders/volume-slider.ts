@@ -16,16 +16,6 @@ import { sliderState, type SliderState } from './slider/api/state';
 import { sliderValueFormatContext } from './slider/format';
 import { SliderController, type SliderControllerProps } from './slider/slider-controller';
 
-export interface VolumeSliderProps extends SliderControllerProps {}
-
-export interface VolumeSliderState extends SliderState {}
-
-export interface VolumeSliderEvents
-  extends SliderEvents,
-    Pick<MediaRequestEvents, 'media-volume-change-request'> {}
-
-export interface VolumeSliderCSSVars extends SliderCSSVars {}
-
 /**
  * Versatile and user-friendly input volume control designed for seamless cross-browser and provider
  * compatibility and accessibility with ARIA support. It offers a smooth user experience for both
@@ -73,8 +63,8 @@ export class VolumeSlider extends Component<
     new SliderController({
       _getStep: this.$props.step,
       _getKeyStep: this.$props.keyStep,
-      _isDisabled: this.$props.disabled,
       _roundValue: Math.round,
+      _isDisabled: this._isDisabled.bind(this),
       _getARIAValueMax: this._getARIAValueMax.bind(this),
       _getARIAValueNow: this._getARIAValueNow.bind(this),
       _getARIAValueText: this._getARIAValueText.bind(this),
@@ -113,6 +103,12 @@ export class VolumeSlider extends Component<
     return this.$state.max() * (audioGain() ?? 1);
   }
 
+  private _isDisabled() {
+    const { disabled } = this.$props,
+      { canSetVolume } = this._media.$state;
+    return disabled() || !canSetVolume();
+  }
+
   private _watchVolume() {
     const { muted, volume } = this._media.$state;
     const newValue = muted() ? 0 : volume() * 100;
@@ -135,3 +131,13 @@ export class VolumeSlider extends Component<
     this._throttleVolumeChange(event);
   }
 }
+
+export interface VolumeSliderProps extends SliderControllerProps {}
+
+export interface VolumeSliderState extends SliderState {}
+
+export interface VolumeSliderEvents
+  extends SliderEvents,
+    Pick<MediaRequestEvents, 'media-volume-change-request'> {}
+
+export interface VolumeSliderCSSVars extends SliderCSSVars {}

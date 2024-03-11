@@ -1,4 +1,4 @@
-import { Component, computed, prop, provideContext } from 'maverick.js';
+import { Component, computed, effect, prop, provideContext, signal } from 'maverick.js';
 import { isBoolean } from 'maverick.js/std';
 
 import { useMediaContext, type MediaContext } from '../../../core/api/media-context';
@@ -39,7 +39,9 @@ export class DefaultLayout extends Component<DefaultLayoutProps> {
 
     this.setAttributes({
       'data-match': this._when,
-      'data-size': () => (this._smallWhen() ? 'sm' : null),
+      'data-sm': () => (this._smallWhen() ? '' : null),
+      'data-lg': () => (!this._smallWhen() ? '' : null),
+      'data-size': () => (this._smallWhen() ? 'sm' : 'lg'),
       'data-no-scrub-gesture': this.$props.noScrubGesture,
     });
 
@@ -48,10 +50,21 @@ export class DefaultLayout extends Component<DefaultLayoutProps> {
       ...this.$props,
       when: this._when,
       smallWhen: this._smallWhen,
+      userPrefersAnnouncements: signal(true),
+      userPrefersKeyboardAnimations: signal(true),
       get menuContainer() {
         return self.menuContainer;
       },
     });
+  }
+
+  protected override onAttach(): void {
+    effect(this._watchColorScheme.bind(this));
+  }
+
+  private _watchColorScheme() {
+    const { colorScheme } = this.$props;
+    this.el?.classList.toggle('light', colorScheme() === 'light');
   }
 
   protected _matches(query: 'never' | boolean | MediaPlayerQuery) {

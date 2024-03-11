@@ -15,6 +15,7 @@ import {
 } from 'maverick.js';
 import {
   animationFrameThrottle,
+  isDOMNode,
   isFunction,
   isKeyboardClick,
   isTouchEvent,
@@ -22,6 +23,8 @@ import {
   setAttribute,
   setStyle,
 } from 'maverick.js/std';
+
+import { round } from './number';
 
 export interface EventTargetLike {
   addEventListener(type: string, handler: (...args: any[]) => void): void;
@@ -36,6 +39,23 @@ export function listen(
   if (!target) return;
   // @ts-expect-error - `listenEvent` is not typed to handle this.
   return listenEvent(target, type, handler);
+}
+
+export function isEventInside(el: HTMLElement, event: Event) {
+  return isDOMNode(event.target) && el.contains(event.target);
+}
+
+const intervalJobs = new Set<() => void>();
+
+if (!__SERVER__) {
+  window.setInterval(() => {
+    for (const job of intervalJobs) job();
+  }, 1000);
+}
+
+export function scheduleIntervalJob(job: () => void) {
+  intervalJobs.add(job);
+  return () => intervalJobs.delete(job);
 }
 
 export function setAttributeIfEmpty(target: Element, name: string, value: string) {
@@ -66,6 +86,19 @@ export function hasParentElement(node: Element | null, test: (node: Element) => 
   }
 
   return hasParentElement(node.parentElement, test);
+}
+
+export function isElementVisible(el: HTMLElement) {
+  const style = getComputedStyle(el);
+  return style.display !== 'none' && parseInt(style.opacity) > 0;
+}
+
+export function checkVisibility(el: HTMLElement | null) {
+  return !!el && el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true });
+}
+
+export function observeVisibility(el: HTMLElement, callback: (isVisible: boolean) => void) {
+  return scheduleIntervalJob(() => callback(checkVisibility(el)));
 }
 
 export function isElementParent(
@@ -291,49 +324,56 @@ export function setRectCSSVars(root: Element, el: Element, prefix: string) {
   const rect = el.getBoundingClientRect();
 
   for (const side of ['top', 'left', 'bottom', 'right']) {
-    setStyle(root as HTMLElement, `--${prefix}-${side}`, `${rect[side]}px`);
+    setStyle(root as HTMLElement, `--${prefix}-${side}`, `${round(rect[side], 3)}px`);
   }
 }
 
 export function useActive($el: ReadSignal<Element | null | undefined>) {
-  const $mouseEnter = useMouseEnter($el),
-    $focusIn = useFocusIn($el);
+  const $isMouseEnter = useMouseEnter($el),
+    $isFocusedIn = useFocusIn($el);
 
-  return computed(() => $mouseEnter() || $focusIn());
+  let prevMouseEnter = false;
+
+  return computed(() => {
+    const isMouseEnter = $isMouseEnter();
+    if (prevMouseEnter && !isMouseEnter) return false;
+    prevMouseEnter = isMouseEnter;
+    return isMouseEnter || $isFocusedIn();
+  });
 }
 
 export function useMouseEnter($el: ReadSignal<Element | null | undefined>) {
-  const $enter = signal(false);
+  const $isMouseEnter = signal(false);
 
   effect(() => {
     const el = $el();
 
     if (!el) {
-      $enter.set(false);
+      $isMouseEnter.set(false);
       return;
     }
 
-    listenEvent(el, 'mouseenter', () => $enter.set(true));
-    listenEvent(el, 'mouseleave', () => $enter.set(false));
+    listenEvent(el, 'mouseenter', () => $isMouseEnter.set(true));
+    listenEvent(el, 'mouseleave', () => $isMouseEnter.set(false));
   });
 
-  return $enter;
+  return $isMouseEnter;
 }
 
 export function useFocusIn($el: ReadSignal<Element | null | undefined>) {
-  const $focusIn = signal(false);
+  const $isFocusIn = signal(false);
 
   effect(() => {
     const el = $el();
 
     if (!el) {
-      $focusIn.set(false);
+      $isFocusIn.set(false);
       return;
     }
 
-    listenEvent(el, 'focusin', () => $focusIn.set(true));
-    listenEvent(el, 'focusout', () => $focusIn.set(false));
+    listenEvent(el, 'focusin', () => $isFocusIn.set(true));
+    listenEvent(el, 'focusout', () => $isFocusIn.set(false));
   });
 
-  return $focusIn;
+  return $isFocusIn;
 }

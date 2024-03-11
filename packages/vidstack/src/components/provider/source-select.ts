@@ -9,7 +9,7 @@ import {
 } from 'maverick.js';
 import { DOMEvent, isArray, isString, noop } from 'maverick.js/std';
 
-import type { MediaContext, MediaPlayerProps, MediaSrc } from '../../core';
+import { isVideoQualitySrc, type MediaContext, type MediaPlayerProps, type Src } from '../../core';
 import {
   AudioProviderLoader,
   HLSProviderLoader,
@@ -36,7 +36,7 @@ export class SourceSelection {
   }
 
   constructor(
-    private _domSources: ReadSignal<MediaSrc[]>,
+    private _domSources: ReadSignal<Src[]>,
     private _media: MediaContext,
     private _loader: WriteSignal<MediaProviderLoader | null>,
     customLoaders: MediaProviderLoader[] = [],
@@ -112,8 +112,9 @@ export class SourceSelection {
       console.warn(
         '[vidstack] could not find a loader for any of the given media sources,' +
           ' consider providing `type`:' +
-          `\n\n<media-provider>\n  <source src="${source.src}" type="video/mp4" />\n</media-provider>"` +
-          '\n\nFalling back to fetching source headers...',
+          `\n\n--- HTML ---\n\n<media-provider>\n  <source src="${source.src}" type="video/mp4" />\n</media-provider>"` +
+          `\n\n--- React ---\n\n<MediaPlayer src={{ src: "${source.src}", type: "video/mp4" }}>` +
+          '\n\n---\n\nFalling back to fetching source headers...',
       );
       warned!.add(newSource.src);
     }
@@ -151,10 +152,12 @@ export class SourceSelection {
     tick();
   }
 
-  protected _findNewSource(currentSource: MediaSrc, sources: MediaSrc[]) {
-    let newSource: MediaSrc = { src: '', type: '' },
+  protected _findNewSource(currentSource: Src, sources: Src[]) {
+    let newSource: Src = { src: '', type: '' },
       newLoader: MediaProviderLoader | null = null,
-      loaders = this._loaders();
+      triggerEvent: DOMEvent = new DOMEvent('sources-change', { detail: { sources } }),
+      loaders = this._loaders(),
+      { started, paused, currentTime, quality, savedState } = this._media.$state;
 
     for (const src of sources) {
       const loader = loaders.find((loader) => loader.canPlay(src));
@@ -165,28 +168,49 @@ export class SourceSelection {
       }
     }
 
+    if (isVideoQualitySrc(newSource)) {
+      const currentQuality = quality(),
+        sourceQuality = sources.find((s) => s.src === currentQuality?.src)!;
+
+      if (peek(started)) {
+        savedState.set({
+          paused: peek(paused),
+          currentTime: peek(currentTime),
+        });
+      } else {
+        savedState.set(null);
+      }
+
+      if (sourceQuality) {
+        newSource = sourceQuality;
+        triggerEvent = new DOMEvent('quality-change', {
+          detail: { quality: currentQuality },
+        });
+      }
+    }
+
     if (!isSameSrc(currentSource, newSource)) {
-      this._notifySourceChange(newSource, newLoader);
+      this._notifySourceChange(newSource, newLoader, triggerEvent);
     }
 
     if (newLoader !== peek(this._loader)) {
-      this._notifyLoaderChange(newLoader);
+      this._notifyLoaderChange(newLoader, triggerEvent);
     }
 
     return newSource;
   }
 
-  protected _notifySourceChange(src: MediaSrc, loader: MediaProviderLoader | null) {
-    this._notify('source-change', src);
-    this._notify('media-type-change', loader?.mediaType(src) || 'unknown');
+  protected _notifySourceChange(src: Src, loader: MediaProviderLoader | null, trigger?: Event) {
+    this._notify('source-change', src, trigger);
+    this._notify('media-type-change', loader?.mediaType(src) || 'unknown', trigger);
   }
 
-  protected _notifyLoaderChange(loader: MediaProviderLoader | null) {
+  protected _notifyLoaderChange(loader: MediaProviderLoader | null, trigger?: Event) {
     this._media.$providerSetup.set(false);
-    this._notify('provider-change', null);
+    this._notify('provider-change', null, trigger);
     loader && peek(() => loader!.preconnect?.(this._media));
     this._loader.set(loader);
-    this._notify('provider-loader-change', loader);
+    this._notify('provider-loader-change', loader, trigger);
   }
 
   private _onSetup() {
@@ -288,27 +312,44 @@ export class SourceSelection {
   }
 }
 
-function normalizeSrc(src: MediaPlayerProps['src']): MediaSrc[] {
-  return (isArray(src) ? src : [src && !isString(src) && 'src' in src ? src : { src: src || '' }])
-    .map(({ src, type, ...props }) => ({
-      src,
-      type:
-        type ??
-        (isString(src) ? sourceTypes.get(src) : null) ??
-        (!isString(src) || src.startsWith('blob:')
-          ? 'video/object'
-          : src.includes('youtube')
-            ? 'video/youtube'
-            : src.includes('vimeo') &&
-                !src.includes('progressive_redirect') &&
-                !src.includes('.m3u8')
-              ? 'video/vimeo'
-              : '?'),
-      ...props,
-    }))
+function normalizeSrc(src: MediaPlayerProps['src']): Src[] {
+  return (isArray(src) ? src : [src])
+    .map((src) => {
+      if (isString(src)) {
+        return {
+          src,
+          type: '?',
+        };
+      } else {
+        return {
+          ...src,
+          type: inferType(src.src, src.type),
+        };
+      }
+    })
     .sort((a) => (a.type === '?' ? 1 : -1));
 }
 
-export function isSameSrc(a: MediaSrc | undefined | null, b: MediaSrc | undefined | null) {
+function inferType(src: unknown, type?: string) {
+  if (isString(type) && type.length) {
+    return type;
+  } else if (isString(src) && sourceTypes.has(src)) {
+    return sourceTypes.get(src)!;
+  } else if (!isString(src) || src.startsWith('blob:')) {
+    return 'video/object';
+  } else if (src.includes('youtube')) {
+    return 'video/youtube';
+  } else if (
+    src.includes('vimeo') &&
+    !src.includes('progressive_redirect') &&
+    !src.includes('.m3u8')
+  ) {
+    return 'video/vimeo';
+  }
+
+  return '?';
+}
+
+export function isSameSrc(a: Src | undefined | null, b: Src | undefined | null) {
   return a?.src === b?.src && a?.type === b?.type;
 }

@@ -4,33 +4,14 @@ import { useSignal } from 'maverick.js/react';
 import { listenEvent, toggleClass } from 'maverick.js/std';
 
 import { useChapterTitle } from '../../../hooks/use-chapter-title';
-import {
-  useActive,
-  useMouseEnter,
-  useRectCSSVars,
-  useResizeObserver,
-  useTransitionActive,
-} from '../../../hooks/use-dom';
+import { useResizeObserver, useTransitionActive } from '../../../hooks/use-dom';
 import { useMediaContext } from '../../../hooks/use-media-context';
 import { useMediaState } from '../../../hooks/use-media-state';
 import { createComputed } from '../../../hooks/use-signals';
-import { Captions } from '../../ui/captions';
 import * as Controls from '../../ui/controls';
 import { useLayoutName } from '../utils';
-import { DefaultLayoutContext, i18n, useDefaultLayoutContext } from './context';
+import { i18n, useDefaultLayoutContext } from './context';
 import { createDefaultMediaLayout, type DefaultLayoutProps } from './media-layout';
-import {
-  DefaultCaptionButton,
-  DefaultChaptersMenu,
-  DefaultControlsSpacer,
-  DefaultMuteButton,
-  DefaultPlayButton,
-  DefaultSeekButton,
-  DefaultSettingsMenu,
-  DefaultTimeInvert,
-  DefaultTimeSlider,
-  DefaultVolumeSlider,
-} from './shared-layout';
 import {
   slot,
   useDefaultAudioLayoutSlots,
@@ -38,6 +19,19 @@ import {
   type DefaultLayoutMenuSlotName,
   type Slots,
 } from './slots';
+import { DefaultAnnouncer } from './ui/announcer';
+import {
+  DefaultCaptionButton,
+  DefaultDownloadButton,
+  DefaultPlayButton,
+  DefaultSeekButton,
+} from './ui/buttons';
+import { DefaultCaptions } from './ui/captions';
+import { DefaultControlsSpacer } from './ui/controls';
+import { DefaultChaptersMenu } from './ui/menus/chapters-menu';
+import { DefaultSettingsMenu } from './ui/menus/settings-menu';
+import { DefaultTimeSlider, DefaultVolumePopup } from './ui/sliders';
+import { DefaultTimeInvert } from './ui/time';
 
 /* -------------------------------------------------------------------------------------------------
  * DefaultAudioLayout
@@ -59,7 +53,9 @@ export interface DefaultAudioLayoutProps extends DefaultLayoutProps<DefaultAudio
  * and more out of the box.
  *
  * @attr data-match - Whether this layout is being used.
- * @attr data-size - The active layout size.
+ * @attr data-sm - The small layout is active
+ * @attr data-lg - The large layout is active.
+ * @attr data-size - The active layout size (sm or lg).
  * @example
  * ```tsx
  * <MediaPlayer src="audio.mp3">
@@ -111,7 +107,8 @@ function AudioLayout() {
   const slots = useDefaultAudioLayoutSlots();
   return (
     <>
-      <Captions className="vds-captions" />
+      <DefaultAnnouncer />
+      <DefaultCaptions />
       <Controls.Root className="vds-controls">
         <Controls.Group className="vds-controls-group">
           {slot(slots, 'seekBackwardButton', <DefaultSeekButton backward tooltip="top start" />)}
@@ -120,8 +117,9 @@ function AudioLayout() {
           <DefaultAudioTitle />
           {slot(slots, 'timeSlider', <DefaultTimeSlider />)}
           <DefaultTimeInvert />
-          <DefaultAudioVolume />
+          <DefaultVolumePopup orientation="vertical" tooltip="top" slots={slots} />
           {slot(slots, 'captionButton', <DefaultCaptionButton tooltip="top center" />)}
+          {slot(slots, 'downloadButton', <DefaultDownloadButton />)}
           <DefaultAudioMenus slots={slots} />
         </Controls.Group>
       </Controls.Root>
@@ -136,7 +134,7 @@ AudioLayout.displayName = 'AudioLayout';
  * -----------------------------------------------------------------------------------------------*/
 
 function DefaultAudioMenus({ slots }: { slots?: Slots<DefaultLayoutMenuSlotName> }) {
-  const { isSmallLayout, noModal } = React.useContext(DefaultLayoutContext),
+  const { isSmallLayout, noModal } = useDefaultLayoutContext(),
     placement = noModal ? 'top end' : !isSmallLayout ? 'top end' : null;
   return (
     <>
@@ -230,32 +228,3 @@ function AudioTitle({ title, chapterTitle }: { title: string; chapterTitle: stri
 }
 
 AudioTitle.displayName = 'AudioTitle';
-
-/* -------------------------------------------------------------------------------------------------
- * DefaultAudioVolume
- * -----------------------------------------------------------------------------------------------*/
-
-function DefaultAudioVolume() {
-  const $pointer = useMediaState('pointer'),
-    $muted = useMediaState('muted'),
-    [rootEl, setRootEl] = React.useState<HTMLElement | null>(null),
-    [triggerEl, setTriggerEl] = React.useState<HTMLElement | null>(null),
-    [popperEl, setPopperEl] = React.useState<HTMLDivElement | null>(null),
-    isRootActive = useActive(rootEl),
-    hasMouseEnteredTrigger = useMouseEnter(triggerEl),
-    slots = useDefaultAudioLayoutSlots();
-
-  useRectCSSVars(rootEl, hasMouseEnteredTrigger ? triggerEl : null, 'trigger');
-  useRectCSSVars(rootEl, hasMouseEnteredTrigger ? popperEl : null, 'popper');
-
-  return $pointer === 'coarse' && !$muted ? null : (
-    <div className="vds-volume" data-active={isRootActive ? '' : null} ref={setRootEl}>
-      {slot(slots, 'muteButton', <DefaultMuteButton tooltip="top center" ref={setTriggerEl} />)}
-      <div className="vds-volume-popup" ref={setPopperEl}>
-        {slot(slots, 'volumeSlider', <DefaultVolumeSlider orientation="vertical" />)}
-      </div>
-    </div>
-  );
-}
-
-DefaultAudioVolume.displayName = 'DefaultAudioVolume';

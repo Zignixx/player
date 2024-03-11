@@ -9,6 +9,7 @@ import {
   Gesture,
   GoogleCastButton,
   LiveButton,
+  MediaAnnouncer,
   MediaPlayer,
   MediaProvider,
   Menu,
@@ -20,6 +21,7 @@ import {
   PIPButton,
   PlayButton,
   Poster,
+  QualitySlider,
   Radio,
   RadioGroup,
   SeekButton,
@@ -29,6 +31,7 @@ import {
   SliderThumbnail,
   SliderValue,
   SliderVideo,
+  SpeedSlider,
   Thumbnail,
   Time,
   TimeSlider,
@@ -42,6 +45,7 @@ import {
 // Core
 export class MediaPlayerInstance extends MediaPlayer {}
 export class MediaProviderInstance extends MediaProvider {}
+export class MediaAnnouncerInstance extends MediaAnnouncer {}
 // Controls
 export class ControlsInstance extends Controls {}
 export class ControlsGroupInstance extends ControlsGroup {}
@@ -65,6 +69,8 @@ export class SliderInstance extends Slider {}
 export class TimeSliderInstance extends TimeSlider {}
 export class VolumeSliderInstance extends VolumeSlider {}
 export class AudioGainSliderInstance extends AudioGainSlider {}
+export class SpeedSliderInstance extends SpeedSlider {}
+export class QualitySliderInstance extends QualitySlider {}
 export class SliderThumbnailInstance extends SliderThumbnail {}
 export class SliderValueInstance extends SliderValue {}
 export class SliderVideoInstance extends SliderVideo {}

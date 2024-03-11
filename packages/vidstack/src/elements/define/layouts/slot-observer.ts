@@ -1,12 +1,12 @@
 import { render, type TemplateResult } from 'lit-html';
 import { onDispose } from 'maverick.js';
-import { animationFrameThrottle } from 'maverick.js/std';
+import { animationFrameThrottle, isDOMNode } from 'maverick.js/std';
 
 export class SlotObserver {
   readonly elements = new Set<HTMLSlotElement>();
 
   constructor(
-    protected _root: HTMLElement,
+    protected _roots: HTMLElement[],
     protected _callback: SlotObserverCallback,
   ) {}
 
@@ -14,7 +14,7 @@ export class SlotObserver {
     this._update();
 
     const observer = new MutationObserver(this._onMutation);
-    observer.observe(this._root, { childList: true, subtree: true });
+    for (const root of this._roots) observer.observe(root, { childList: true, subtree: true });
     onDispose(() => observer.disconnect());
 
     onDispose(this.disconnect.bind(this));
@@ -25,7 +25,7 @@ export class SlotObserver {
   }
 
   assign(template: Element | TemplateResult, slot: HTMLSlotElement) {
-    if (template instanceof Node) {
+    if (isDOMNode(template)) {
       slot.textContent = '';
       slot.append(template);
     } else {
@@ -49,7 +49,7 @@ export class SlotObserver {
     if (entries && !entries.some((e) => e.addedNodes.length)) return;
 
     let changed = false,
-      slots = this._root.querySelectorAll('slot');
+      slots = this._roots.flatMap((root) => [...root.querySelectorAll('slot')]);
 
     for (const slot of slots) {
       if (!slot.hasAttribute('name') || this.elements.has(slot)) continue;

@@ -4,6 +4,7 @@ import { useSignal } from 'maverick.js/react';
 import { isBoolean } from 'maverick.js/std';
 import {
   type DefaultLayoutTranslations,
+  type FileDownloadInfo,
   type MediaPlayerQuery,
   type MediaStreamType,
   type ThumbnailSrc,
@@ -11,7 +12,7 @@ import {
 
 import { useMediaContext } from '../../../hooks/use-media-context';
 import { useMediaState } from '../../../hooks/use-media-state';
-import { createComputed } from '../../../hooks/use-signals';
+import { createComputed, createSignal } from '../../../hooks/use-signals';
 import type { PrimitivePropsWithRef } from '../../primitives/nodes';
 import { DefaultLayoutContext } from './context';
 import type { DefaultLayoutIcons } from './icons';
@@ -26,6 +27,17 @@ export interface DefaultLayoutProps<Slots = unknown> extends PrimitivePropsWithR
    * The icons to be rendered and displayed inside the layout.
    */
   icons: DefaultLayoutIcons;
+  /**
+   * Whether light or dark color theme should be active. Defaults to user operating system
+   * preference.
+   *
+   * @see {@link https://developer.mozilla.org/en-US/docs/Web/CSS/@media/prefers-color-scheme}
+   */
+  colorScheme?: 'light' | 'dark' | null;
+  /**
+   * Sets the download URL and filename for the download button.
+   */
+  download?: FileDownloadInfo;
   /**
    * Specifies the number of milliseconds to wait before tooltips are visible after interacting
    * with a control.
@@ -69,11 +81,11 @@ export interface DefaultLayoutProps<Slots = unknown> extends PrimitivePropsWithR
   /**
    * Disable audio boost slider in the settings menu.
    */
-  noAudioGainSlider: boolean;
+  noAudioGain?: boolean;
   /**
-   * The maximum audio gain to be applied. The default is `300` which represents a `300%` boost.
+   * The audio gain options to be displayed in the settings menu.
    */
-  maxAudioGain: number;
+  audioGains?: number[] | { min: number; max: number; step: number };
   /**
    * Whether modal menus should be disabled when the small layout is active. A modal menu is
    * a floating panel that floats up from the bottom of the screen (outside of the player). It's
@@ -99,11 +111,11 @@ export interface DefaultLayoutProps<Slots = unknown> extends PrimitivePropsWithR
   /**
    * Whether keyboard actions should not be displayed.
    */
-  noKeyboardActionDisplay?: boolean;
+  noKeyboardAnimations?: boolean;
   /**
    * The playback rate options to be displayed in the settings menu.
    */
-  playbackRates?: number[];
+  playbackRates?: number[] | { min: number; max: number; step: number };
   /**
    * The number of seconds to seek forward or backward when pressing the seek button or using
    * keyboard shortcuts.
@@ -138,14 +150,16 @@ export function createDefaultMediaLayout({
         disableTimeSlider = false,
         hideQualityBitrate = false,
         icons,
+        colorScheme = null,
+        download = null,
         menuGroup = 'bottom',
-        noAudioGainSlider = false,
-        maxAudioGain = 300,
+        noAudioGain = false,
+        audioGains = { min: 0, max: 300, step: 25 },
         noGestures = false,
-        noKeyboardActionDisplay = false,
+        noKeyboardAnimations = false,
         noModal = false,
         noScrubGesture,
-        playbackRates,
+        playbackRates = { min: 0, max: 2, step: 0.25 },
         seekStep = 10,
         showMenuDelay,
         showTooltipDelay = 700,
@@ -166,6 +180,8 @@ export function createDefaultMediaLayout({
         $smallWhen = createComputed(() => {
           return isBoolean(smallLayoutWhen) ? smallLayoutWhen : smallLayoutWhen(media.player.state);
         }, [smallLayoutWhen]),
+        userPrefersAnnouncements = createSignal(true),
+        userPrefersKeyboardAnimations = createSignal(true),
         isMatch = $viewType === type,
         isSmallLayout = $smallWhen(),
         isForcedLayout = isBoolean(smallLayoutWhen),
@@ -177,9 +193,15 @@ export function createDefaultMediaLayout({
       return (
         <div
           {...props}
-          className={`vds-${type}-layout` + (className ? ` ${className}` : '')}
+          className={
+            `vds-${type}-layout` +
+            (colorScheme === 'light' ? ' light' : '') +
+            (className ? ` ${className}` : '')
+          }
           data-match={isMatch ? '' : null}
-          data-size={isSmallLayout ? 'sm' : null}
+          data-sm={isSmallLayout ? '' : null}
+          data-lg={!isSmallLayout ? '' : null}
+          data-size={isSmallLayout ? 'sm' : 'lg'}
           data-no-scrub-gesture={noScrubGesture ? '' : null}
           ref={forwardRef}
         >
@@ -189,12 +211,14 @@ export function createDefaultMediaLayout({
                 disableTimeSlider,
                 hideQualityBitrate,
                 icons: icons,
+                colorScheme,
+                download,
                 isSmallLayout,
                 menuGroup,
-                maxAudioGain,
-                noAudioGainSlider,
+                noAudioGain,
+                audioGains,
                 noGestures,
-                noKeyboardActionDisplay,
+                noKeyboardAnimations,
                 noModal,
                 noScrubGesture,
                 showMenuDelay,
@@ -205,6 +229,8 @@ export function createDefaultMediaLayout({
                 playbackRates,
                 thumbnails,
                 translations,
+                userPrefersAnnouncements,
+                userPrefersKeyboardAnimations,
               }}
             >
               {renderLayout({ streamType: $streamType, isSmallLayout, isLoadLayout })}

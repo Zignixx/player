@@ -2,7 +2,8 @@ import { createScope, onDispose, peek } from 'maverick.js';
 import { DOMEvent, keysOf } from 'maverick.js/std';
 
 import type { MediaContext } from '../../core/api/media-context';
-import type { MediaSrc, MediaStreamType } from '../../core/api/types';
+import type { Src } from '../../core/api/src-types';
+import type { MediaStreamType } from '../../core/api/types';
 import { TimeRange } from '../../core/time-ranges';
 import { RAFLoop } from '../../foundation/observers/raf-loop';
 import type { MediaProviderAdapter } from '../types';
@@ -28,7 +29,7 @@ export class GoogleCastProvider implements MediaProviderAdapter {
 
   readonly scope = createScope();
 
-  protected _currentSrc: MediaSrc<string> | null = null;
+  protected _currentSrc: Src<string> | null = null;
   protected _state: RemotePlaybackState = 'disconnected';
   protected _currentTime = 0;
   protected _played = 0;
@@ -36,7 +37,7 @@ export class GoogleCastProvider implements MediaProviderAdapter {
   protected _seekableRange = new TimeRange(0, 0);
   protected _timeRAF = new RAFLoop(this._onAnimationFrame.bind(this));
   protected _playerEventHandlers!: Record<string, RemotePlayerEventCallback>;
-  protected _reloadInfo: { src: MediaSrc; paused: boolean; time: number } | null = null;
+  protected _reloadInfo: { src: Src; paused: boolean; time: number } | null = null;
   protected _isIdle = false;
 
   protected _tracks = new GoogleCastTracksManager(
@@ -183,18 +184,18 @@ export class GoogleCastProvider implements MediaProviderAdapter {
     this._player.controller?.setVolumeLevel();
   }
 
-  async loadSource(src: MediaSrc) {
+  async loadSource(src: Src) {
     if (this._reloadInfo?.src !== src) this._reloadInfo = null;
 
     if (hasActiveCastSession(src)) {
       this._resumeSession();
-      this._currentSrc = src as MediaSrc<string>;
+      this._currentSrc = src as Src<string>;
       return;
     }
 
     this._notify('load-start');
 
-    const loadRequest = this._buildLoadRequest(src as MediaSrc<string>),
+    const loadRequest = this._buildLoadRequest(src as Src<string>),
       errorCode = await this.session!.loadMedia(loadRequest);
 
     if (errorCode) {
@@ -203,7 +204,7 @@ export class GoogleCastProvider implements MediaProviderAdapter {
       return;
     }
 
-    this._currentSrc = src as MediaSrc<string>;
+    this._currentSrc = src as Src<string>;
   }
 
   destroy() {
@@ -227,18 +228,16 @@ export class GoogleCastProvider implements MediaProviderAdapter {
     const resumeSessionEvent = new DOMEvent('resume-session', { detail: this.session! });
     this._onMediaLoadedChange(resumeSessionEvent);
 
-    const { muted, volume, remotePlaybackInfo } = this._ctx.$state,
-      localState = remotePlaybackInfo();
+    const { muted, volume, savedState } = this._ctx.$state,
+      localState = savedState();
 
     // Set time to whatever is further ahead (local/remote).
-    this.setCurrentTime(
-      Math.max(this._player.currentTime, localState?.savedState?.currentTime ?? 0),
-    );
+    this.setCurrentTime(Math.max(this._player.currentTime, localState?.currentTime ?? 0));
 
     this.setMuted(muted());
     this.setVolume(volume());
 
-    if (localState?.savedState?.paused === false) this.play();
+    if (localState?.paused === false) this.play();
   }
 
   protected _endSession() {
@@ -248,11 +247,11 @@ export class GoogleCastProvider implements MediaProviderAdapter {
   }
 
   protected _disconnectFromReceiver() {
-    this._ctx.$state.remotePlaybackInfo.set({
-      savedState: {
-        paused: this._player.isPaused,
-        currentTime: this._player.currentTime,
-      },
+    const { savedState } = this._ctx.$state;
+
+    savedState.set({
+      paused: this._player.isPaused,
+      currentTime: this._player.currentTime,
     });
 
     this._endSession();
@@ -454,7 +453,7 @@ export class GoogleCastProvider implements MediaProviderAdapter {
     return detail instanceof Event ? detail : new DOMEvent<any>(detail.type, { detail });
   }
 
-  protected _buildMediaInfo(src: MediaSrc<string>) {
+  protected _buildMediaInfo(src: Src<string>) {
     const { streamType, title, poster } = this._ctx.$state;
     return new GoogleCastMediaInfoBuilder(src)
       ._setMetadata(title(), poster())
@@ -463,13 +462,13 @@ export class GoogleCastProvider implements MediaProviderAdapter {
       .build();
   }
 
-  protected _buildLoadRequest(src: MediaSrc<string>) {
+  protected _buildLoadRequest(src: Src<string>) {
     const mediaInfo = this._buildMediaInfo(src),
       request = new chrome.cast.media.LoadRequest(mediaInfo),
-      info = this._ctx.$state.remotePlaybackInfo();
+      savedState = this._ctx.$state.savedState();
 
-    request.autoplay = (this._reloadInfo?.paused ?? info?.savedState?.paused) === false;
-    request.currentTime = this._reloadInfo?.time ?? info?.savedState?.currentTime ?? 0;
+    request.autoplay = (this._reloadInfo?.paused ?? savedState?.paused) === false;
+    request.currentTime = this._reloadInfo?.time ?? savedState?.currentTime ?? 0;
 
     return request;
   }

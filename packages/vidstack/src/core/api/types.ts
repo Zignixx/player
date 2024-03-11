@@ -20,10 +20,6 @@ export type RemotePlaybackType = 'airplay' | 'google-cast' | 'none';
 
 export interface RemotePlaybackInfo {
   deviceName?: string;
-  savedState?: {
-    paused?: boolean;
-    currentTime?: number;
-  };
 }
 
 /**
@@ -70,11 +66,4 @@ export interface MediaErrorDetail {
   code?: MediaErrorCode;
   error?: Error;
   mediaError?: MediaError;
-}
-
-export type MediaResource = string | MediaStream | MediaSource | Blob;
-
-export interface MediaSrc<T = unknown> {
-  src: T;
-  type: string;
 }

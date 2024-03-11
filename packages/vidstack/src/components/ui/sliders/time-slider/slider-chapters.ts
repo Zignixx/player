@@ -71,7 +71,7 @@ export class SliderChapters extends Component<SliderChaptersProps, {}, SliderCha
 
   protected override onAttach(el: HTMLElement): void {
     watchActiveTextTrack(this._media.textTracks, 'chapters', this._setTrack.bind(this));
-    effect(this._onTrackChange.bind(this));
+    effect(this._watchSource.bind(this));
   }
 
   protected override onConnect(): void {
@@ -113,6 +113,14 @@ export class SliderChapters extends Component<SliderChaptersProps, {}, SliderCha
 
   private _watch() {
     if (!this._refs.length) return;
+
+    effect(this._watchUpdates.bind(this));
+  }
+  private _watchUpdates() {
+    const { hidden } = this._sliderState;
+
+    if (hidden()) return;
+
     effect(this._watchContainerWidths.bind(this));
     effect(this._watchFillPercent.bind(this));
     effect(this._watchPointerPercent.bind(this));
@@ -157,7 +165,11 @@ export class SliderChapters extends Component<SliderChaptersProps, {}, SliderCha
     let currentActiveIndex = isLiveEdge
       ? this._$cues.length - 1
       : this._findActiveChapterIndex(
-          currentChapter ? ((currentChapter.startTime / duration() * 100) <= peek(value) ? prevActiveIndex : 0) : 0,
+          currentChapter
+            ? (currentChapter.startTime / duration()) * 100 <= peek(value)
+              ? prevActiveIndex
+              : 0
+            : 0,
           fillPercent(),
         );
 
@@ -319,6 +331,12 @@ export class SliderChapters extends Component<SliderChaptersProps, {}, SliderCha
     }
 
     return chapters;
+  }
+
+  private _watchSource() {
+    const { source } = this._media.$state;
+    source();
+    this._onTrackChange();
   }
 
   private _onTrackChange() {

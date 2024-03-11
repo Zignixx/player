@@ -4,6 +4,7 @@ export * from './components/primitives/instances';
 // Core
 export type { PlayerSrc } from './source';
 export { type MediaPlayerProps, MediaPlayer } from './components/player';
+export { type MediaAnnouncerProps, MediaAnnouncer } from './components/announcer';
 export { type MediaProviderProps, MediaProvider } from './components/provider';
 export { type IconProps, Icon, type IconComponent } from './icon';
 export { Track, type TrackProps } from './components/text-track';
@@ -44,15 +45,20 @@ export { type LiveButtonProps, LiveButton } from './components/ui/buttons/live-b
 // Slider
 export * as Slider from './components/ui/sliders/slider';
 export * as VolumeSlider from './components/ui/sliders/volume-slider';
+export * as QualitySlider from './components/ui/sliders/quality-slider';
 export * as AudioGainSlider from './components/ui/sliders/audio-gain-slider';
+export * as SpeedSlider from './components/ui/sliders/speed-slider';
 export * as TimeSlider from './components/ui/sliders/time-slider';
 export type {
   RootProps as SliderProps,
   ValueProps as SliderValueProps,
   PreviewProps as SliderPreviewProps,
+  StepsProps as SliderStepsProps,
 } from './components/ui/sliders/slider';
 export type { RootProps as VolumeSliderProps } from './components/ui/sliders/volume-slider';
 export type { RootProps as AudioGainSliderProps } from './components/ui/sliders/audio-gain-slider';
+export type { RootProps as SpeedSliderProps } from './components/ui/sliders/speed-slider';
+export type { RootProps as QualitySliderProps } from './components/ui/sliders/quality-slider';
 export type {
   RootProps as TimeSliderProps,
   ChaptersProps as SliderChapterProps,

@@ -7,10 +7,10 @@ import type { VideoQuality } from '../quality/video-quality';
 import { getTimeRangesEnd, getTimeRangesStart, TimeRange } from '../time-ranges';
 import type { AudioTrack } from '../tracks/audio-tracks';
 import { isTrackCaptionKind, type TextTrack } from '../tracks/text/text-track';
+import type { Src } from './src-types';
 import type {
   MediaCrossOrigin,
   MediaErrorDetail,
-  MediaSrc,
   MediaStreamType,
   MediaType,
   MediaViewType,
@@ -38,11 +38,16 @@ export const mediaState = new State<MediaState>({
   clipEndTime: 0,
   controls: false,
   controlsVisible: false,
+  get controlsHidden() {
+    return !this.controlsVisible;
+  },
   crossOrigin: null,
   ended: false,
   error: null,
   fullscreen: false,
-  loop: false,
+  get loop() {
+    return this.providedLoop || this.userPrefersLoop;
+  },
   logLevel: __DEV__ ? 'warn' : 'silent',
   mediaType: 'unknown',
   muted: false,
@@ -187,6 +192,8 @@ export const mediaState = new State<MediaState>({
   autoPlaying: false,
   providedTitle: '',
   inferredTitle: '',
+  providedLoop: false,
+  userPrefersLoop: false,
   providedPoster: '',
   inferredPoster: '',
   inferredViewType: 'unknown',
@@ -194,41 +201,43 @@ export const mediaState = new State<MediaState>({
   providedStreamType: 'unknown',
   inferredStreamType: 'unknown',
   liveSyncPosition: null,
+  savedState: null,
 });
 
-const RESET_ON_SRC_CHANGE = new Set<keyof MediaState>([
-  'audioTrack',
-  'audioTracks',
+const RESET_ON_SRC_QUALITY_CHANGE = new Set<keyof MediaState>([
   'autoPlayError',
   'autoPlaying',
-  'autoQuality',
   'buffered',
   'canPlay',
-  'ended',
   'error',
+  'paused',
+  'played',
+  'playing',
+  'seekable',
+  'seeking',
+  'waiting',
+]);
+
+const RESET_ON_SRC_CHANGE = new Set<keyof MediaState>([
+  ...RESET_ON_SRC_QUALITY_CHANGE,
+  'ended',
   'inferredPoster',
   'inferredStreamType',
   'inferredTitle',
   'intrinsicDuration',
   'liveSyncPosition',
-  'paused',
-  'played',
-  'playing',
-  'qualities',
-  'quality',
   'realCurrentTime',
-  'seekable',
-  'seeking',
+  'savedState',
   'started',
   'userBehindLiveEdge',
-  'waiting',
 ]);
 
 /**
  * Resets all media state and leaves general player state intact.
  */
-export function softResetMediaState($media: MediaStore) {
-  mediaState.reset($media, (prop) => RESET_ON_SRC_CHANGE.has(prop));
+export function softResetMediaState($media: MediaStore, isSourceQualityChange = false) {
+  const filter = isSourceQualityChange ? RESET_ON_SRC_QUALITY_CHANGE : RESET_ON_SRC_CHANGE;
+  mediaState.reset($media, (prop) => filter.has(prop));
   tick();
 }
 
@@ -456,6 +465,10 @@ export interface MediaState {
    */
   controlsVisible: boolean;
   /**
+   * Whether controls are hidden.
+   */
+  readonly controlsHidden: boolean;
+  /**
    * Whether the user has intentionally seeked behind the live edge. The user must've seeked
    * roughly 2 or more seconds behind during a live stream for this to be considered true.
    *
@@ -469,7 +482,7 @@ export interface MediaState {
    * @defaultValue false
    * @see {@link https://developer.mozilla.org/en-US/docs/Web/API/HTMLMediaElement/loop}
    */
-  loop: boolean;
+  readonly loop: boolean;
   /**
    * The current log level. Values in order of priority are: `silent`, `error`, `warn`, `info`,
    * and `debug`.
@@ -704,16 +717,16 @@ export interface MediaState {
    *
    * @defaultValue []
    */
-  sources: MediaSrc[];
+  sources: Src[];
   /**
    * The chosen media resource. Defaults to `{ src: '', type: '' }` if no media has been loaded.
    *
    * @defaultValue { src: '', type: '' }
    * @see {@link https://developer.mozilla.org/en-US/docs/Web/API/HTMLMediaElement/currentSrc}
    */
-  source: MediaSrc;
+  source: Src;
   /** Alias for `source`. */
-  currentSrc: MediaSrc;
+  currentSrc: Src;
   /**
    * Whether media playback has started. In other words it will be true if `currentTime > 0`.
    *
@@ -812,6 +825,10 @@ export interface MediaState {
   providedTitle: string;
   /* @internal */
   inferredTitle: string;
+  /* @internal */
+  providedLoop: boolean;
+  /* @internal */
+  userPrefersLoop: boolean;
   /* @internal - Unclipped current time. */
   realCurrentTime: number;
   /* @internal */
@@ -834,6 +851,8 @@ export interface MediaState {
   inferredStreamType: MediaStreamType;
   /* @internal */
   liveSyncPosition: number | null;
+  /** @internal */
+  savedState: { paused?: boolean; currentTime?: number } | null;
 }
 
 export interface MediaPlayerQuery {

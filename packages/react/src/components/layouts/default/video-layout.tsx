@@ -1,32 +1,15 @@
 import * as React from 'react';
 
+import { useSignal } from 'maverick.js/react';
+
 import { useMediaState } from '../../../hooks/use-media-state';
-import { Captions } from '../../ui/captions';
 import * as Controls from '../../ui/controls';
 import { Gesture } from '../../ui/gesture';
 import * as Spinner from '../../ui/spinner';
 import { Time } from '../../ui/time';
 import { useLayoutName } from '../utils';
-import { DefaultLayoutContext } from './context';
-import { DefaultVideoKeyboardActionDisplay } from './keyboard-action-display';
+import { useDefaultLayoutContext } from './context';
 import { createDefaultMediaLayout, type DefaultLayoutProps } from './media-layout';
-import {
-  DefaultAirPlayButton,
-  DefaultCaptionButton,
-  DefaultChaptersMenu,
-  DefaultChapterTitle,
-  DefaultControlsSpacer,
-  DefaultFullscreenButton,
-  DefaultGoogleCastButton,
-  DefaultMuteButton,
-  DefaultPIPButton,
-  DefaultPlayButton,
-  DefaultSettingsMenu,
-  DefaultTimeInfo,
-  DefaultTimeSlider,
-  DefaultTitle,
-  DefaultVolumeSlider,
-} from './shared-layout';
 import {
   slot,
   useDefaultVideoLayoutSlots,
@@ -34,6 +17,24 @@ import {
   type DefaultVideoLayoutSlots,
   type Slots,
 } from './slots';
+import { DefaultAnnouncer } from './ui/announcer';
+import {
+  DefaultAirPlayButton,
+  DefaultCaptionButton,
+  DefaultDownloadButton,
+  DefaultFullscreenButton,
+  DefaultGoogleCastButton,
+  DefaultPIPButton,
+  DefaultPlayButton,
+} from './ui/buttons';
+import { DefaultCaptions } from './ui/captions';
+import { DefaultControlsSpacer } from './ui/controls';
+import { DefaultKeyboardDisplay } from './ui/keyboard-display';
+import { DefaultChaptersMenu } from './ui/menus/chapters-menu';
+import { DefaultSettingsMenu } from './ui/menus/settings-menu';
+import { DefaultTimeSlider, DefaultVolumePopup } from './ui/sliders';
+import { DefaultTimeInfo } from './ui/time';
+import { DefaultTitle } from './ui/title';
 
 /* -------------------------------------------------------------------------------------------------
  * DefaultVideoLayout
@@ -65,7 +66,9 @@ export interface DefaultVideoLayoutProps extends DefaultLayoutProps<DefaultVideo
  * previews, captions, audio/quality settings, live streams, and more out of the box.
  *
  * @attr data-match - Whether this layout is being used.
- * @attr data-size - The active layout size.
+ * @attr data-sm - The small layout is active
+ * @attr data-lg - The large layout is active.
+ * @attr data-size - The active layout size (sm or lg).
  * @example
  * ```tsx
  * <MediaPlayer src="video.mp4">
@@ -87,21 +90,16 @@ export { DefaultVideoLayout };
  * -----------------------------------------------------------------------------------------------*/
 
 function DefaultVideoLargeLayout() {
-  const { menuGroup, noKeyboardActionDisplay, icons, translations } =
-      React.useContext(DefaultLayoutContext),
+  const { menuGroup } = useDefaultLayoutContext(),
     baseSlots = useDefaultVideoLayoutSlots(),
     slots = { ...baseSlots, ...baseSlots?.largeLayout };
   return (
     <>
+      <DefaultAnnouncer />
       <DefaultVideoGestures />
-      {!noKeyboardActionDisplay && icons.KeyboardAction ? (
-        <DefaultVideoKeyboardActionDisplay
-          icons={icons.KeyboardAction}
-          translations={translations}
-        />
-      ) : null}
+      <DefaultVideoKeyboardDisplay />
       {slot(slots, 'bufferingIndicator', <DefaultBufferingIndicator />)}
-      {slot(slots, 'captions', <Captions className="vds-captions" />)}
+      {slot(slots, 'captions', <DefaultCaptions />)}
       <Controls.Root className="vds-controls">
         <Controls.Group className="vds-controls-group">
           {slot(slots, 'topControlsGroupStart', null)}
@@ -130,14 +128,14 @@ function DefaultVideoLargeLayout() {
 
         <Controls.Group className="vds-controls-group">
           {slot(slots, 'playButton', <DefaultPlayButton tooltip="top start" />)}
-          {slot(slots, 'muteButton', <DefaultMuteButton tooltip="top" />)}
-          {slot(slots, 'volumeSlider', <DefaultVolumeSlider />)}
+          <DefaultVolumePopup orientation="horizontal" tooltip="top" slots={slots} />
           <DefaultTimeInfo slots={slots} />
-          {slot(slots, 'chapterTitle', <DefaultChapterTitle />)}
+          {slot(slots, 'chapterTitle', <DefaultTitle />)}
           {slot(slots, 'captionButton', <DefaultCaptionButton tooltip="top" />)}
           {menuGroup === 'bottom' && <DefaultVideoMenus slots={slots} />}
           {slot(slots, 'airPlayButton', <DefaultAirPlayButton tooltip="top" />)}
           {slot(slots, 'googleCastButton', <DefaultGoogleCastButton tooltip="top" />)}
+          {slot(slots, 'downloadButton', <DefaultDownloadButton />)}
           {slot(slots, 'pipButton', <DefaultPIPButton tooltip="top" />)}
           {slot(slots, 'fullscreenButton', <DefaultFullscreenButton tooltip="top end" />)}
         </Controls.Group>
@@ -158,9 +156,11 @@ function DefaultVideoSmallLayout() {
     slots = { ...baseSlots, ...baseSlots?.smallLayout };
   return (
     <>
+      <DefaultAnnouncer />
       <DefaultVideoGestures />
+      <DefaultVideoKeyboardDisplay />
       {slot(slots, 'bufferingIndicator', <DefaultBufferingIndicator />)}
-      {slot(slots, 'captions', <Captions className="vds-captions" />)}
+      {slot(slots, 'captions', <DefaultCaptions />)}
       <Controls.Root className="vds-controls">
         <Controls.Group className="vds-controls-group">
           {slot(slots, 'topControlsGroupStart', null)}
@@ -170,8 +170,9 @@ function DefaultVideoSmallLayout() {
           {slot(slots, 'topControlsGroupCenter', null)}
           <DefaultControlsSpacer />
           {slot(slots, 'captionButton', <DefaultCaptionButton tooltip="bottom" />)}
+          {slot(slots, 'downloadButton', <DefaultDownloadButton />)}
           <DefaultVideoMenus slots={slots} />
-          {slot(slots, 'muteButton', <DefaultMuteButton tooltip="bottom end" />)}
+          <DefaultVolumePopup orientation="vertical" tooltip="bottom end" slots={slots} />,
           {slot(slots, 'topControlsGroupEnd', null)}
         </Controls.Group>
         <DefaultControlsSpacer />
@@ -186,7 +187,7 @@ function DefaultVideoSmallLayout() {
         <DefaultControlsSpacer />
         <Controls.Group className="vds-controls-group">
           <DefaultTimeInfo slots={slots} />
-          {slot(slots, 'chapterTitle', <DefaultChapterTitle />)}
+          {slot(slots, 'chapterTitle', <DefaultTitle />)}
           {slot(slots, 'fullscreenButton', <DefaultFullscreenButton tooltip="top end" />)}
         </Controls.Group>
         <Controls.Group className="vds-controls-group">
@@ -221,7 +222,7 @@ DefaultVideoStartDuration.displayName = 'DefaultVideoStartDuration';
  * -----------------------------------------------------------------------------------------------*/
 
 function DefaultVideoGestures() {
-  const { noGestures } = React.useContext(DefaultLayoutContext);
+  const { noGestures } = useDefaultLayoutContext();
 
   if (noGestures) return null;
 
@@ -262,7 +263,7 @@ export { DefaultBufferingIndicator };
  * -----------------------------------------------------------------------------------------------*/
 
 function DefaultVideoMenus({ slots }: { slots?: Slots<DefaultLayoutMenuSlotName> }) {
-  const { isSmallLayout, noModal, menuGroup } = React.useContext(DefaultLayoutContext),
+  const { isSmallLayout, noModal, menuGroup } = useDefaultLayoutContext(),
     side = menuGroup === 'top' || isSmallLayout ? 'bottom' : ('top' as const),
     tooltip = `${side} end` as const,
     placement = noModal
@@ -302,7 +303,7 @@ DefaultVideoMenus.displayName = 'DefaultVideoMenus';
  * -----------------------------------------------------------------------------------------------*/
 
 function DefaultVideoLoadLayout() {
-  const { isSmallLayout } = React.useContext(DefaultLayoutContext),
+  const { isSmallLayout } = useDefaultLayoutContext(),
     baseSlots = useDefaultVideoLayoutSlots(),
     slots = { ...baseSlots, ...baseSlots?.[isSmallLayout ? 'smallLayout' : 'largeLayout'] };
   return (
@@ -314,3 +315,19 @@ function DefaultVideoLoadLayout() {
 }
 
 DefaultVideoLoadLayout.displayName = 'DefaultVideoLoadLayout';
+
+/* -------------------------------------------------------------------------------------------------
+ * DefaultVideoKeyboardDisplay
+ * -----------------------------------------------------------------------------------------------*/
+
+function DefaultVideoKeyboardDisplay() {
+  const { noKeyboardAnimations, icons, userPrefersKeyboardAnimations } = useDefaultLayoutContext(),
+    $userPrefersKeyboardAnimations = useSignal(userPrefersKeyboardAnimations),
+    disabled = noKeyboardAnimations || !$userPrefersKeyboardAnimations;
+
+  if (disabled || !icons.KeyboardDisplay) return null;
+
+  return <DefaultKeyboardDisplay icons={icons.KeyboardDisplay} />;
+}
+
+DefaultVideoKeyboardDisplay.displayName = 'DefaultVideoKeyboardDisplay';

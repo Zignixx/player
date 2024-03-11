@@ -24,7 +24,13 @@ import {
 import { useMediaContext, type MediaContext } from '../../../core/api/media-context';
 import type { MediaRequestEvents } from '../../../core/api/media-request-events';
 import { $ariaBool } from '../../../utils/aria';
-import { isElementParent, onPress, setAttributeIfEmpty } from '../../../utils/dom';
+import {
+  isElementParent,
+  isElementVisible,
+  isEventInside,
+  onPress,
+  setAttributeIfEmpty,
+} from '../../../utils/dom';
 import { Popper } from '../popper/popper';
 import { sliderObserverContext } from '../sliders/slider/slider-context';
 import type { MenuButton } from './menu-button';
@@ -136,14 +142,7 @@ export class Menu extends Component<MenuProps, {}, MenuEvents> {
       this._parentMenu = useContext(menuContext);
     }
 
-    provideContext(sliderObserverContext, {
-      onDragStart: () => {
-        this._isSliderActive = true;
-      },
-      onDragEnd: () => {
-        this._isSliderActive = false;
-      },
-    });
+    this._observeSliders();
 
     this.setAttributes({
       'data-open': this._expanded,
@@ -155,6 +154,7 @@ export class Menu extends Component<MenuProps, {}, MenuEvents> {
       _button: this._trigger,
       _expanded: this._expanded,
       _hint: signal(''),
+      _submenu: !!this._parentMenu,
       _disable: this._disable.bind(this),
       _attachMenuButton: this._attachMenuButton.bind(this),
       _attachMenuItems: this._attachMenuItems.bind(this),
@@ -166,7 +166,6 @@ export class Menu extends Component<MenuProps, {}, MenuEvents> {
 
   protected override onAttach(el: HTMLElement) {
     el.style.setProperty('display', 'contents');
-    this._focus._attachMenu(el);
   }
 
   protected override onConnect(el: HTMLElement) {
@@ -180,6 +179,29 @@ export class Menu extends Component<MenuProps, {}, MenuEvents> {
     this._trigger.set(null);
     this._content.set(null);
     this._menuObserver = null;
+  }
+
+  private _observeSliders() {
+    let sliderActiveTimer = -1,
+      parentSliderObserver = hasProvidedContext(sliderObserverContext)
+        ? useContext(sliderObserverContext)
+        : null;
+
+    provideContext(sliderObserverContext, {
+      onDragStart: () => {
+        parentSliderObserver?.onDragStart?.();
+        window.clearTimeout(sliderActiveTimer);
+        sliderActiveTimer = -1;
+        this._isSliderActive = true;
+      },
+      onDragEnd: () => {
+        parentSliderObserver?.onDragEnd?.();
+        sliderActiveTimer = window.setTimeout(() => {
+          this._isSliderActive = false;
+          sliderActiveTimer = -1;
+        }, 300);
+      },
+    });
   }
 
   private _watchExpanded() {
@@ -215,10 +237,6 @@ export class Menu extends Component<MenuProps, {}, MenuEvents> {
     setAttribute(el, 'aria-haspopup', 'menu');
     setAttribute(el, 'aria-expanded', 'false');
     setAttribute(el, 'data-submenu', this.isSubmenu);
-
-    if (!this.isSubmenu) {
-      this._stopClickPropagation(el);
-    }
 
     const watchAttrs = () => {
       setAttribute(el, 'data-open', this._expanded());
@@ -266,11 +284,6 @@ export class Menu extends Component<MenuProps, {}, MenuEvents> {
     this._menuObserver = observer;
   }
 
-  private _stopClickPropagation(el: HTMLElement) {
-    listenEvent(el, 'click', (e) => e.stopPropagation());
-    listenEvent(el, 'pointerup', (e) => e.stopPropagation());
-  }
-
   private _updateMenuItemsHidden(expanded: boolean) {
     const content = peek(this._content);
     if (content) setAttribute(content, 'aria-hidden', ariaBool(!expanded));
@@ -280,7 +293,10 @@ export class Menu extends Component<MenuProps, {}, MenuEvents> {
     this._isTriggerDisabled.set(disabled);
   }
 
+  private _wasKeyboardExpand = false;
   private _onExpandedChange(isExpanded: boolean, event?: Event) {
+    this._wasKeyboardExpand = isKeyboardEvent(event);
+
     event?.stopPropagation();
 
     if (this._expanded() === isExpanded) return;
@@ -311,12 +327,9 @@ export class Menu extends Component<MenuProps, {}, MenuEvents> {
     this._toggleMediaControls(event);
     tick();
 
-    if (isKeyboardEvent(event)) {
-      if (isExpanded) {
-        content?.focus();
-      } else {
-        trigger?.focus();
-      }
+    if (this._wasKeyboardExpand) {
+      if (isExpanded) content?.focus();
+      else trigger?.focus();
 
       for (const el of [this.el, content]) {
         el && el.setAttribute('data-keyboard', '');
@@ -338,10 +351,7 @@ export class Menu extends Component<MenuProps, {}, MenuEvents> {
       this._menuObserver?._onOpen?.(event);
     } else {
       if (this.isSubmenu) {
-        // A little delay so submenu closing doesn't jump menu size when closing.
-        setTimeout(() => {
-          for (const el of this._submenus) el.close(event);
-        }, 300);
+        for (const el of this._submenus) el.close(event);
       } else {
         this._media.activeMenu = null;
       }
@@ -349,15 +359,16 @@ export class Menu extends Component<MenuProps, {}, MenuEvents> {
       this._menuObserver?._onClose?.(event);
     }
 
-    if (isExpanded && !isKeyboardEvent(event)) {
-      requestAnimationFrame(() => {
-        this._focus._update();
-        // Timeout to allow size to be updated via transition.
-        setTimeout(() => {
-          this._focus._scroll();
-        }, 100);
-      });
+    if (isExpanded) {
+      requestAnimationFrame(this._updateFocus.bind(this));
     }
+  }
+
+  private _updateFocus() {
+    if (this._isTransitionActive || this._isSubmenuOpen) return;
+    this._focus._update();
+    if (this._wasKeyboardExpand) this._focus._focusActive();
+    this._focus._scroll();
   }
 
   private _isExpanded() {
@@ -373,21 +384,24 @@ export class Menu extends Component<MenuProps, {}, MenuEvents> {
   }
 
   private _onPointerUp(event: PointerEvent) {
-    if (this._isSliderActive) return;
+    const content = this._content();
+
+    if (this._isSliderActive || (content && isEventInside(content, event))) {
+      return;
+    }
+
     // Prevent it bubbling up to window so we can determine when to close dialog.
     event.stopPropagation();
   }
 
   private _onWindowPointerUp(event: Event) {
-    if (this._isSliderActive) return;
+    const content = this._content();
 
-    const isTargetNode = event.target instanceof Node;
+    if (this._isSliderActive || (content && isEventInside(content, event))) {
+      return;
+    }
 
-    if (!isTargetNode || this._content()?.contains(event.target)) return;
-
-    // A little delay so submenu closing doesn't jump menu size when closing.
-    if (this.isSubmenu) return setTimeout(this.close.bind(this, event), 800);
-    else this.close(event);
+    this.close(event);
   }
 
   private _getCloseTarget() {
@@ -434,8 +448,13 @@ export class Menu extends Component<MenuProps, {}, MenuEvents> {
     this._submenus.delete(menu);
   }
 
+  private _isSubmenuOpen = false;
   private _onSubmenuOpenBind = this._onSubmenuOpen.bind(this);
   private _onSubmenuOpen(event: MenuOpenEvent) {
+    this._isSubmenuOpen = true;
+
+    const content = this._content();
+
     if (this.isSubmenu) {
       this.triggerElement?.setAttribute('aria-hidden', 'true');
     }
@@ -447,10 +466,25 @@ export class Menu extends Component<MenuProps, {}, MenuEvents> {
         }
       }
     }
+
+    if (content) {
+      const el = event.target.el;
+      for (const child of content.children) {
+        if (child.contains(el)) {
+          child.setAttribute('data-open', '');
+        } else if (child !== el) {
+          child.setAttribute('data-hide', '');
+        }
+      }
+    }
   }
 
   private _onSubmenuCloseBind = this._onSubmenuClose.bind(this);
-  private _onSubmenuClose() {
+  private _onSubmenuClose(event: MenuCloseEvent) {
+    this._isSubmenuOpen = false;
+
+    const content = this._content();
+
     if (this.isSubmenu) {
       this.triggerElement?.setAttribute('aria-hidden', 'false');
     }
@@ -458,6 +492,13 @@ export class Menu extends Component<MenuProps, {}, MenuEvents> {
     for (const target of this._submenus) {
       for (const el of [target.el, target.triggerElement]) {
         el?.setAttribute('aria-hidden', 'false');
+      }
+    }
+
+    if (content) {
+      for (const child of content.children) {
+        child.removeAttribute('data-open');
+        child.removeAttribute('data-hide');
       }
     }
   }
@@ -480,8 +521,8 @@ export class Menu extends Component<MenuProps, {}, MenuEvents> {
       } else if (child.nodeType === 3) {
         height += parseFloat(getComputedStyle(child).fontSize);
       } else if (child instanceof HTMLElement) {
+        if (!isElementVisible(child)) continue;
         const style = getComputedStyle(child);
-        if (style.display === 'none') continue;
         height +=
           child.offsetHeight +
           (parseFloat(style.marginTop) || 0) +
@@ -492,11 +533,15 @@ export class Menu extends Component<MenuProps, {}, MenuEvents> {
     setStyle(content, '--menu-height', height + 'px');
   });
 
+  protected _isTransitionActive = false;
   protected _onResizeTransition(event: TransitionEvent) {
     const content = this._content();
     if (content && event.propertyName === 'height') {
-      const hasStarted = event.type === 'transitionstart';
-      setAttribute(content, 'data-resizing', hasStarted);
+      this._isTransitionActive = event.type === 'transitionstart';
+
+      setAttribute(content, 'data-resizing', this._isTransitionActive);
+
+      if (this._expanded()) this._updateFocus();
     }
   }
 

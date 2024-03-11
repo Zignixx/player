@@ -4,30 +4,32 @@ import { computed } from 'maverick.js';
 import { useDefaultLayoutContext } from '../../../../components/layouts/default/context';
 import { useMediaState } from '../../../../core/api/media-context';
 import { $signal } from '../../../lit/directives/signal';
-import { DefaultVideoKeyboardActionDisplay } from './keyboard-action-display';
+import { DefaultAnnouncer } from './ui/announcer';
 import {
   DefaultAirPlayButton,
   DefaultCaptionButton,
-  DefaultChaptersMenu,
-  DefaultChapterTitle,
-  DefaultControlsSpacer,
+  DefaultDownloadButton,
   DefaultFullscreenButton,
   DefaultGoogleCastButton,
-  DefaultMuteButton,
   DefaultPIPButton,
   DefaultPlayButton,
-  DefaultSettingsMenu,
-  DefaultTimeInfo,
-  DefaultTimeSlider,
-  DefaultVolumeSlider,
-} from './shared-layout';
+} from './ui/buttons';
+import { DefaultCaptions } from './ui/captions';
+import { DefaultControlsSpacer } from './ui/controls';
+import { DefaultKeyboardDisplay } from './ui/keyboard-display';
+import { DefaultChaptersMenu } from './ui/menu/chapters-menu';
+import { DefaultSettingsMenu } from './ui/menu/settings-menu';
+import { DefaultTimeSlider, DefaultVolumePopup } from './ui/slider';
+import { DefaultTimeInfo } from './ui/time';
+import { DefaultTitle } from './ui/title';
 
 export function DefaultVideoLayoutLarge() {
   return [
+    DefaultAnnouncer(),
     DefaultVideoGestures(),
     DefaultBufferingIndicator(),
-    DefaultVideoKeyboardActionDisplay(),
-    html`<media-captions class="vds-captions"></media-captions>`,
+    DefaultKeyboardDisplay(),
+    DefaultCaptions(),
     html`<div class="vds-scrim"></div>`,
     html`
       <media-controls class="vds-controls">
@@ -45,15 +47,15 @@ export function DefaultVideoLayoutLarge() {
             <media-controls-group class="vds-controls-group">
               ${[
                 DefaultPlayButton({ tooltip: 'top start' }),
-                DefaultMuteButton({ tooltip: 'top' }),
-                DefaultVolumeSlider(),
+                DefaultVolumePopup({ orientation: 'horizontal', tooltip: 'top' }),
                 DefaultTimeInfo(),
-                DefaultChapterTitle(),
+                DefaultTitle(),
                 DefaultCaptionButton({ tooltip: 'top' }),
                 CustomDownloadButton('top'),
                 DefaultBottomMenuGroup(),
                 DefaultAirPlayButton({ tooltip: 'top' }),
                 DefaultGoogleCastButton({ tooltip: 'top' }),
+                DefaultDownloadButton(),
                 DefaultPIPButton(),
                 DefaultFullscreenButton({ tooltip: 'top end' }),
               ]}
@@ -109,9 +111,11 @@ function DefaultControlsGroupTop() {
 
 export function DefaultVideoLayoutSmall() {
   return [
+    DefaultAnnouncer(),
     DefaultVideoGestures(),
     DefaultBufferingIndicator(),
-    html`<media-captions class="vds-captions"></media-captions>`,
+    DefaultCaptions(),
+    DefaultKeyboardDisplay(),
     html`<div class="vds-scrim"></div>`,
     html`
       <media-controls class="vds-controls">
@@ -121,8 +125,9 @@ export function DefaultVideoLayoutSmall() {
             DefaultGoogleCastButton({ tooltip: 'bottom start' }),
             DefaultControlsSpacer(),
             DefaultCaptionButton({ tooltip: 'bottom' }),
+            DefaultDownloadButton(),
             DefaultVideoMenus(),
-            DefaultMuteButton({ tooltip: 'bottom end' }),
+            DefaultVolumePopup({ orientation: 'vertical', tooltip: 'bottom end' }),
           ]}
         </media-controls-group>
 
@@ -139,11 +144,7 @@ export function DefaultVideoLayoutSmall() {
         ${DefaultControlsSpacer()}
 
         <media-controls-group class="vds-controls-group">
-          ${[
-            DefaultTimeInfo(),
-            DefaultChapterTitle(),
-            DefaultFullscreenButton({ tooltip: 'top end' }),
-          ]}
+          ${[DefaultTimeInfo(), DefaultTitle(), DefaultFullscreenButton({ tooltip: 'top end' })]}
         </media-controls-group>
 
         <media-controls-group class="vds-controls-group">
@@ -197,7 +198,7 @@ function DefaultVideoMenus() {
   ];
 }
 
-function DefaultVideoGestures() {
+export function DefaultVideoGestures() {
   return $signal(() => {
     const { noGestures } = useDefaultLayoutContext();
 

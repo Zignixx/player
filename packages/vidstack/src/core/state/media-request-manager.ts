@@ -415,13 +415,10 @@ export class MediaRequestManager extends MediaPlayerController implements MediaR
       const isConnecting = peek(this.$state.remotePlaybackState) !== 'disconnected';
 
       if (isConnecting) {
-        this.$state.remotePlaybackInfo.set((info) => ({
-          ...info,
-          savedState: {
-            paused: peek(this.$state.paused),
-            currentTime: peek(this.$state.currentTime),
-          },
-        }));
+        this.$state.savedState.set({
+          paused: peek(this.$state.paused),
+          currentTime: peek(this.$state.currentTime),
+        });
       }
 
       this.$state.remotePlaybackLoader.set(isConnecting ? this._googleCastLoader : null);
@@ -595,6 +592,10 @@ export class MediaRequestManager extends MediaPlayerController implements MediaR
     } catch (error) {
       this._request._looping = false;
     }
+  }
+
+  ['media-user-loop-change-request'](event: RE.MediaUserLoopChangeRequestEvent) {
+    this.$state.userPrefersLoop.set(event.detail);
   }
 
   async ['media-pause-request'](event: RE.MediaPauseRequestEvent) {

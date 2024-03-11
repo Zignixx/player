@@ -1,23 +1,24 @@
 import type { MediaPlayerQuery } from '../../../core/api/player-state';
-import { DEFAULT_AUDIO_GAINS } from '../../ui/menu/radio-groups/audio-gain-radio-group';
-import { DEFAULT_PLAYBACK_RATES } from '../../ui/menu/radio-groups/speed-radio-group';
+import type { FileDownloadInfo } from '../../../utils/network';
 import type { ThumbnailSrc } from '../../ui/thumbnails/thumbnail-loader';
 import type { DefaultLayoutTranslations } from './translations';
 
 export const defaultLayoutProps: DefaultLayoutProps = {
+  colorScheme: null,
+  download: null,
   customIcons: false,
   disableTimeSlider: false,
   menuGroup: 'bottom',
-  noAudioGainSlider: false,
-  maxAudioGain: 300,
+  noAudioGain: false,
   noGestures: false,
-  noKeyboardActionDisplay: false,
+  noKeyboardAnimations: false,
   noModal: false,
   noScrubGesture: false,
-  playbackRates: DEFAULT_PLAYBACK_RATES,
-  audioGains: DEFAULT_AUDIO_GAINS,
+  playbackRates: { min: 0, max: 2, step: 0.25 },
+  audioGains: { min: 0, max: 300, step: 25 },
   seekStep: 10,
   sliderChaptersMinWidth: 325,
+  hideQualityBitrate: false,
   smallWhen: false,
   thumbnails: null,
   translations: null,
@@ -40,6 +41,17 @@ export interface DefaultLayoutProps {
    */
   thumbnails: ThumbnailSrc;
   /**
+   * Whether light or dark color theme should be active. Defaults to user operating system
+   * preference.
+   *
+   * @see {@link https://developer.mozilla.org/en-US/docs/Web/CSS/@media/prefers-color-scheme}
+   */
+  colorScheme: 'light' | 'dark' | null;
+  /**
+   * Sets the download URL and filename for the download button.
+   */
+  download: FileDownloadInfo;
+  /**
    * Whether the default icons should _not_ be loaded. Set this to `true` when providing your own
    * icons.
    */
@@ -56,11 +68,7 @@ export interface DefaultLayoutProps {
   /**
    * Disable audio boost slider in the settings menu.
    */
-  noAudioGainSlider: boolean;
-  /**
-   * The maximum audio gain to be applied. The default is `300` which represents a `300%` boost.
-   */
-  maxAudioGain: number;
+  noAudioGain: boolean;
   /**
    * Whether modal menus should be disabled when the small layout is active. A modal menu is
    * a floating panel that floats up from the bottom of the screen (outside of the player). It's
@@ -86,16 +94,21 @@ export interface DefaultLayoutProps {
   /**
    * Whether keyboard actions should not be displayed.
    */
-  noKeyboardActionDisplay: boolean;
+  noKeyboardAnimations: boolean;
+  /**
+   * Whether the bitrate should be hidden in the settings quality hint.
+   *
+   * @defaultValue false
+   */
+  hideQualityBitrate: boolean;
   /**
    * The playback rate options to be displayed in the settings menu.
    */
-  playbackRates: number[];
-
+  playbackRates: number[] | { min: number; max: number; step: number };
   /**
    * The audio gain options to be displayed in the settings menu.
    */
-  audioGains: number[];
+  audioGains: number[] | { min: number; max: number; step: number };
   /**
    * The number of seconds to seek forward or backward when pressing the seek button or using
    * keyboard shortcuts.

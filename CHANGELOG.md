@@ -2,6 +2,50 @@
 
 All notable changes to this project will be documented in this file.
 
+## [unreleased]
+
+### ✨ Features
+
+#### Player
+
+- audio gain support (#1145) ([c3e08c5](https://github.com/vidstack/player/commit/c3e08c57996a50c403b414b4d79b88b9deb3b0e5))
+- new accessibility settings menu ([0b6470f](https://github.com/vidstack/player/commit/0b6470f0831a9536e405931cbf42790079925cfa))
+- show example captions text on style change ([8ceae6b](https://github.com/vidstack/player/commit/8ceae6bee4e3de29a124f2e74d984f2391a76500))
+- keyboard animations setting in default layout ([b63fa16](https://github.com/vidstack/player/commit/b63fa1624286c152c8e9e755f03a08d9a4b5ac11))
+- loop setting in default layout ([5f07f55](https://github.com/vidstack/player/commit/5f07f55462057f6ff2fc5b6a337477f975fe85c9))
+- media announcer ([533edc5](https://github.com/vidstack/player/commit/533edc5bbd9ff923bf3bb4b5fa31b81afce98062))
+- announcements setting in default layout ([701f7ce](https://github.com/vidstack/player/commit/701f7ce21b895b8cf70972678023ca5193778b49))
+- new speed slider component ([cd413ba](https://github.com/vidstack/player/commit/cd413ba578a7c8535a0fbbcb77f4566e9b1bcc22))
+- new quality slider component ([e6d801a](https://github.com/vidstack/player/commit/e6d801a86fa3f0c505dffe83823d7ffe41ffaaf9))
+- new default layout settings controls ([4718669](https://github.com/vidstack/player/commit/4718669117598423ae97647f33a78037a1d6d10e))
+- support color preference in default theme ([0a96ec6](https://github.com/vidstack/player/commit/0a96ec6da17cda4c4bd6183b52c7c6d223fe8562))
+- specify default theme color scheme ([9a10613](https://github.com/vidstack/player/commit/9a10613c9312326b00b4ec7bc4bfa0b16c76ce8e))
+- add download button to default layout ([80488b6](https://github.com/vidstack/player/commit/80488b624aba6c38fa85f804496af34fc243bc5c))
+- new slider steps component ([5623c98](https://github.com/vidstack/player/commit/5623c985b9b654cdf5d9695dbe19830c9302f24a))
+- source qualities ([837daa0](https://github.com/vidstack/player/commit/837daa0be8230c68efdd39e2fc470c2487652746))
+
+### 🐛 Bug Fixes
+
+#### Player
+
+- always include keyboard status updates ([82ec4a3](https://github.com/vidstack/player/commit/82ec4a3baf72ad3a350e9f572c6829be0dc53fb4))
+- respect prefers reduced motion in default theme ([208a152](https://github.com/vidstack/player/commit/208a15295fb2c9f9ea8620284a78b57aa7b0639d))
+- include provider file name hashes in cdn bundle ([5c76bbc](https://github.com/vidstack/player/commit/5c76bbc9f2e13ff23e2f061423a830cf07cc216c))
+- improve volume slider popups ([07ebc12](https://github.com/vidstack/player/commit/07ebc129a295f70873e88184fb1c6116f4cc2da5))
+- show title in default layout ([6adb7f4](https://github.com/vidstack/player/commit/6adb7f4f91dd93950a16c959eafb737963edc196))
+- add deno to node exports ([22afcea](https://github.com/vidstack/player/commit/22afcea2ca4ab36647c1d706f75f9d2775ae54b1))
+- add bun to node exports ([17afddd](https://github.com/vidstack/player/commit/17afdddcc13d014f3a84f78479cd09644dc12da1))
+- show volume slider when available in small default layout ([20b9eab](https://github.com/vidstack/player/commit/20b9eab945fdcb177f665976d94dc728bbc3922a))
+- include react example in source selection warning ([a3d6eb1](https://github.com/vidstack/player/commit/a3d6eb1ca16d62b00ad4e7669cd91cfaaf287efc))
+- add workerd to node exports (#1198) ([dedd706](https://github.com/vidstack/player/commit/dedd706e761afaf681866e1f70155187a359b9bc))
+- stop expensive updates when not visible ([be96bd2](https://github.com/vidstack/player/commit/be96bd29206b25b75a49dccba4e80e46fbdc2253))
+- narrow player src types ([82988ca](https://github.com/vidstack/player/commit/82988ca75d42efc143688a2154fa6009b8e237a9))
+
+#### Player (React)
+
+- rename `DefaultKeyboardActionDisplay` to `DefaultKeyboardDisplay` ([9d573f9](https://github.com/vidstack/player/commit/9d573f984642629c7595911d2c621da404742b17))
+- slider callbacks not firing ([a4fe4e0](https://github.com/vidstack/player/commit/a4fe4e0b8dd748dd6bc04a5372bd4d816f212197))
+
 ## [1.10.9-next](https://github.com/vidstack/player/releases/tag/v1.10.9-next) (2024-02-20)
 
 ### 🐛 Bug Fixes

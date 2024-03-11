@@ -1,7 +1,7 @@
 import { html } from 'lit-html';
 import { effect, onDispose, signal } from 'maverick.js';
 import { Host, type Attributes } from 'maverick.js/element';
-import { listenEvent, setAttribute } from 'maverick.js/std';
+import { listenEvent } from 'maverick.js/std';
 
 import { DefaultAudioLayout } from '../../../../components/layouts/default/audio-layout';
 import type { DefaultLayoutProps } from '../../../../components/layouts/default/props';
@@ -9,10 +9,11 @@ import type { MediaContext } from '../../../../core';
 import { useMediaContext } from '../../../../core/api/media-context';
 import { $signal } from '../../../lit/directives/signal';
 import { LitElement, type LitRenderer } from '../../../lit/lit-element';
+import { setLayoutName } from '../layout-name';
 import { SlotManager } from '../slot-manager';
 import { DefaultAudioLayout as Layout } from './audio-layout';
 import { DefaultLayoutIconsLoader } from './icons-loader';
-import { createMenuContainer } from './shared-layout';
+import { createMenuContainer } from './ui/menu/menu-portal';
 
 /**
  * @docs {@link https://www.vidstack.io/docs/wc/player/components/layouts/default-layout}
@@ -48,12 +49,7 @@ export class MediaAudioLayoutElement
     this._media = useMediaContext();
 
     this.classList.add('vds-audio-layout');
-    this.menuContainer = createMenuContainer('vds-audio-layout');
-
-    effect(() => {
-      if (!this.menuContainer) return;
-      setAttribute(this.menuContainer, 'data-size', this.isSmallLayout && 'sm');
-    });
+    this.menuContainer = createMenuContainer('vds-audio-layout', () => this.isSmallLayout);
 
     const { pointer } = this._media.$state;
     effect(() => {
@@ -65,14 +61,14 @@ export class MediaAudioLayoutElement
   }
 
   protected onConnect() {
-    this._media.player.el?.setAttribute('data-layout', 'audio');
-    onDispose(() => this._media.player.el?.removeAttribute('data-layout'));
+    setLayoutName('audio', () => this.isMatch);
 
     effect(() => {
+      const roots = this.menuContainer ? [this, this.menuContainer] : [this];
       if (this.$props.customIcons()) {
-        new SlotManager(this).connect();
+        new SlotManager(roots).connect();
       } else {
-        new DefaultLayoutIconsLoader(this).connect();
+        new DefaultLayoutIconsLoader(roots).connect();
       }
     });
   }
